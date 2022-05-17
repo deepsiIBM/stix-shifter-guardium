@@ -5,6 +5,7 @@ import json
 import re
 import sys
 import traceback
+import ast
 from stix_shifter_utils.stix_transmission.utils.RestApiClient import RestApiClient
 from stix_shifter_utils.utils import logger
 
@@ -152,10 +153,42 @@ class GuardApiClient(RestApiClient):
         params["fetchSize"] = int(fetch_size - 1)
         params["firstPosition"] = int(index_from - 1)
         params["inputTZ"] = "UTC"
-
-        rest_data = json.dumps(params)
-        response = self.client.call_api(self.qs_target, 'POST', data=rest_data, headers=self.headers)
-        results = response.read()
+        # if ',' in params["filters"] and params["category"] == 'VIOLATION':
+        value_ip = re.findall(r'[0-9]+(?:\.[0-9]+){3}', params["filters"])
+        if len(value_ip) < 1:
+            temp = params["filters"].split("value=")
+            temp1 = temp[1].split("&")
+            temp3 = temp1[0].replace("'", "").replace("[", "").replace("]", "")
+            value = temp3.split(",")
+            if len(value) >= 1:
+                temp = params["filters"].split("=")
+                filter1 = "=".join(temp[:2]), "=".join(temp[2:])
+                group = filter1[1].split("&")
+                resp_bytes = []
+                resp_str = []
+                content = []
+                for item in value:
+                    data1 = filter1[0] + "=" + item + "&" + group[1]
+                    # data1 = 'name=Client IP&value=9.30.122.39&isGroup=false'
+                    params['filters'] = data1
+                    rest_data = json.dumps(params)
+                    print(rest_data)
+                    response = self.client.call_api(self.qs_target, 'POST', data=rest_data, headers=self.headers)
+                    results = response.read()
+                    result_tesxt = response.response
+                    result_tesxt1 = result_tesxt.text
+                    resp_str.append(result_tesxt1)
+                    resp_bytes.append(results)
+                    content1 = self.translate_response(json.loads(self.fields), json.loads(response.read()))
+                    content1 = json.loads(content1)
+                    content = content + content1
+                response.content = json.dumps(content)
+                return response
+            else:
+                rest_data = json.dumps(params)
+                print(rest_data)
+                response = self.client.call_api(self.qs_target, 'POST', data=rest_data, headers=self.headers)
+                results = response.read()
 
         if not isinstance(results, list):
             try:
