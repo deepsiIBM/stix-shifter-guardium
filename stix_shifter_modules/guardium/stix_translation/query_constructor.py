@@ -640,6 +640,11 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options, transformer
     # timerange set to 24 hours for Guardium; timerange is provided in minutes (as delta)
 
     guardium_query_translator = QueryStringPatternTranslator(pattern, data_model_mapping, options, transformers)
+    ip = re.findall(r'[0-9]+(?:\.[0-9]+){3}', str(data))
+    if data_model_mapping.dialect == 'report'and len(ip) > 0 and 'IN' in data:
+        report_header = {}
+        return report_header
+
     report_call = guardium_query_translator.translated
 
 
@@ -648,11 +653,7 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options, transformer
     report_call = re.sub("STOP", " STOP ", report_call)
     if "IN" in data:
         guardium_query_translator.inQuery = True
-        ip = re.findall(r'[0-9]+(?:\.[0-9]+){3}', str(data))
-        # if len(ip) > 0:
-        #     guardium_query_translator.inQuery = True
-# Subroto: I did not change the code much just adapted to get the report parameters
-# Subroto: added code to support report search parameters are "and" when sent to Guardium
+
     # translate the structure of report_call
     if data_model_mapping.dialect == 'report':
         json_report_call = guardium_query_translator.transform_report_call_to_json(report_call)
@@ -661,12 +662,10 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options, transformer
 
     result_array = []
     result_position = 0
-
     if data_model_mapping.dialect == 'report':
         output_array = guardium_query_translator.build_array_of_guardium_report_params(result_array, result_position, None, json_report_call, None)
         guardium_query_translator.set_report_params_passed(output_array)
         report_header = guardium_query_translator.get_report_params()
-        print(report_header)
     else:
         output_array = guardium_query_translator.build_array_of_guardium_qsearch_params(result_array, result_position, None, json_qsearch_call, None)
         guardium_query_translator.set_qsearch_params_passed(output_array)
