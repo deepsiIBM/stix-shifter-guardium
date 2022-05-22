@@ -700,9 +700,15 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options, transformer
             guardium_query_translator.field_server = field[0]
             report_call = report_call.replace(",", "OR" + " " + field[0] + "=")
         else:
+            ip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', data)
             item = field[1].split("OR")[1]
-            report_call = report_call.replace(',', " OR " + item + "=", 1)
-            report_call = report_call.replace(',', " OR " + field[0] + "=").replace("(", "").replace(")", "")
+            str_report_call = []
+            data_str = data.split("]")
+            for val in ip:
+                query = field[0].replace('(','') + ' = ' + val + ' OR ' + item + ' = ' + val
+                str_report_call.append(query)
+            str_rep = json.dumps(str_report_call)
+            report_call = str_rep.replace(',', ' OR').replace('"','').replace('[',"").replace(']',"") + data_str[1]
     words = report_call.split(" ");
     counter = 0
     for i in range(0, len(words)):
