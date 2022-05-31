@@ -70,6 +70,7 @@ class QueryStringPatternTranslator:
         # Read qsearch definition data
         self.QSEARCH_PARAMS_MAP = read_json('guardium_qsearch_params_map', options)
 
+        self.query_item
     # def set_report_params_passed(self, params_array):
     #     self.report_params_array = params_array
     #     self.report_params_array_size = len(params_array)
@@ -180,7 +181,7 @@ class QueryStringPatternTranslator:
         out_str = "[" + re.sub(regex8, '"', out_str, 0) + "]"
         if self.duplicate_key == True:
             if "OR" in qsearch_call and not "AND" in qsearch_call:
-                out_str = out_str.replace("‘", '"')
+                out_str = out_str.replace("‘", '"').replace("OR",',')
                 return out_str
         else:
             return json.loads(out_str)
@@ -608,6 +609,7 @@ class QueryStringPatternTranslator:
             # should be (x, y, z, ...)
             elif expression.comparator == ComparisonComparators.In:
                 value = list(map(self._escape_value, expression.value.element_iterator()))
+                self.query_item = value
             elif expression.comparator == ComparisonComparators.Equal or expression.comparator == ComparisonComparators.NotEqual:
                 # Should be in single-quotes
                 value = self._format_equality(expression.value)
@@ -693,10 +695,11 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options, transformer
     # Add space around START STOP qualifiers
     report_call = re.sub("START", "START ", report_call)
     report_call = re.sub("STOP", " STOP ", report_call)
+    value = guardium_query_translator.query_item
     if "IN" in data:
         field = report_call.split("=")
         report_call = report_call.replace("[", "").replace("]", "")
-        if len(field) < 3:
+        if len(field) <= 2:
             guardium_query_translator.field_server = field[0]
             report_call = report_call.replace(",", "OR" + " " + field[0] + "=")
         else:
@@ -704,8 +707,8 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options, transformer
             item = field[1].split("OR")[1]
             str_report_call = []
             data_str = data.split("]")
-            for val in ip:
-                query = field[0].replace('(','') + ' = ' + val + ' OR ' + item + ' = ' + val
+            for val in value:
+                query = field[0].replace('(','') + '  =  ' + val + '  OR  ' + item + ' = ' + val
                 str_report_call.append(query)
             str_rep = json.dumps(str_report_call)
             report_call = str_rep.replace(',', ' OR').replace('"','').replace('[',"").replace(']',"") + data_str[1]
@@ -747,7 +750,7 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options, transformer
                 length_custom_list = 0
                 for word in custom_str:
                     word = word.replace('{', '')
-                    word = word.replace('}', '')
+                    word = word.replace('}', '').replace("'","")
                     # if 'START' or 'STOP' in word:
                     word = word.replace(':', '=', 1)
                     word = word.split('=')
